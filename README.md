@@ -1,7 +1,7 @@
 # Foundly
 
 ## Tagline
-Talent Deserves to Be Found.
+Beyond Followers.Beyond Connections.
 
 ## About
 Foundly is an AI-enabled social platform where people showcase what they can do, while AI converts their content into skill-based insights that help the right opportunities find them.
