@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { 
-  X, Sparkles, ArrowRight, User, Briefcase, Code, Palette, Music, Film, Feather, Lightbulb, Camera, Lock, Mail, CheckCircle2 
+  X, Sparkles, ArrowRight, User, Briefcase, Code, Palette, Music, Film, Feather, Lightbulb, CheckCircle2 
 } from 'lucide-react';
+import { signUpUser, signInUser } from '../services/api';
 
 export default function AuthModal({ 
   isOpen, 
@@ -12,7 +13,7 @@ export default function AuthModal({
   onNavigateToFeed
 }) {
   const [authMode, setAuthMode] = useState('signup'); // 'signup' | 'login'
-  const [step, setStep] = useState(1); // 1: Auth, 2: Role, 3: Profile Details, 4: Ready
+  const [step, setStep] = useState(1); // 1: Auth credentials, 2: Role choice, 3: Profile Details, 4: Ready
   
   // Auth fields
   const [email, setEmail] = useState('');
@@ -20,22 +21,23 @@ export default function AuthModal({
   const [confirmPassword, setConfirmPassword] = useState('');
 
   // Role choice
-  const [role, setRole] = useState('creator'); // 'creator' | 'provider'
+  const [role, setRole] = useState('creator');
 
-  // Profile creation fields (REQUIRED)
+  // Profile creation fields
   const [fullName, setFullName] = useState('');
   const [username, setUsername] = useState('');
   const [category, setCategory] = useState('technology');
   const [categoryLabel, setCategoryLabel] = useState('Technology / AI');
 
-  // Profile creation fields (OPTIONAL - EMPTY BY DEFAULT!)
+  // Optional Profile Fields
   const [bio, setBio] = useState('');
   const [location, setLocation] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=400&q=80');
   const [selectedInterests, setSelectedInterests] = useState([]);
 
-  // Form error
+  // Form & Supabase error state
   const [errorMsg, setErrorMsg] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   if (!isOpen) return null;
 
@@ -62,7 +64,7 @@ export default function AuthModal({
     }
   };
 
-  const handleAuthSubmit = (e) => {
+  const handleAuthSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg('');
 
@@ -71,14 +73,24 @@ export default function AuthModal({
         setErrorMsg('Please enter your email and password.');
         return;
       }
-      const success = onLoginAccount(email.trim(), password.trim());
-      if (success) {
-        onClose();
+      
+      setIsLoading(true);
+      const { user, error } = await signInUser({ email: email.trim(), password: password.trim() });
+      setIsLoading(false);
+
+      if (error) {
+        // Fallback to local login if Supabase not yet configured
+        const fallbackSuccess = onLoginAccount(email.trim(), password.trim());
+        if (!fallbackSuccess) {
+          setErrorMsg(error.message || 'Invalid credentials or user not found.');
+        } else {
+          onClose();
+        }
       } else {
-        setErrorMsg('No account found with this email. Please check your credentials or create a new account.');
+        onClose();
       }
     } else {
-      // Sign up
+      // Sign up mode: validate credentials then proceed to profile creation
       if (!email.trim() || !password.trim()) {
         setErrorMsg('Please enter an email and password.');
         return;
@@ -96,26 +108,12 @@ export default function AuthModal({
     if (chosenRole === 'creator') {
       setStep(3);
     } else {
-      // Provider profile creation quick finish
-      const newProvider = {
-        id: 'user_' + Date.now(),
-        email: email.trim(),
-        name: email.split('@')[0],
-        username: `@${email.split('@')[0]}`,
-        role: 'provider',
-        category: 'technology',
-        categoryLabel: 'Technology / AI',
-        avatar: avatarUrl,
-        bio: 'Opportunity Provider / Recruiter searching for verified skill-backed creators.',
-        location: '',
-        createdAt: new Date().toISOString()
-      };
-      onRegisterAccount(newProvider);
-      onClose();
+      // Direct provider quick setup
+      handleFinalizeProfileRegistration('provider');
     }
   };
 
-  const handleCreateProfileSubmit = (e) => {
+  const handleCreateProfileSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg('');
 
@@ -128,32 +126,61 @@ export default function AuthModal({
       return;
     }
 
-    const cleanHandle = username.trim().startsWith('@') ? username.trim() : `@${username.trim()}`;
+    await handleFinalizeProfileRegistration('creator');
+  };
 
-    // Create user object WITH NO FABRICATED SCORE OR WORK!
-    const newCreatorUser = {
-      id: 'user_' + Date.now(),
-      email: email.trim() || `${username.trim()}@foundly.user`,
-      name: fullName.trim(),
+  const handleFinalizeProfileRegistration = async (userRoleType) => {
+    setIsLoading(true);
+    const cleanHandle = username.trim().startsWith('@') ? username.trim() : `@${username.trim()}`;
+    
+    const profilePayload = {
+      email: email.trim(),
+      password: password.trim(),
+      name: fullName.trim() || email.split('@')[0],
       username: cleanHandle,
-      role: 'creator',
+      category: category,
+      avatar: avatarUrl,
+      bio: bio.trim(),
+      location: location.trim(),
+      interests: selectedInterests
+    };
+
+    const { user, error } = await signUpUser(profilePayload);
+    setIsLoading(false);
+
+    if (error) {
+      setErrorMsg(error.message || 'Could not complete registration.');
+      return;
+    }
+
+    // Also update local application state
+    const newUserRecord = {
+      id: user?.id || 'user_' + Date.now(),
+      email: email.trim(),
+      name: fullName.trim() || email.split('@')[0],
+      username: cleanHandle,
+      role: userRoleType,
       category: category,
       categoryLabel: categoryLabel,
       avatar: avatarUrl,
-      bio: bio.trim(), // Empty by default unless user wrote it!
-      location: location.trim(), // Empty by default unless user wrote it!
+      bio: bio.trim(),
+      location: location.trim(),
       interests: selectedInterests,
-      work: [], // Empty initially! No fake work!
+      work: [],
       posts: [],
       joinedCommunities: [],
       connections: {},
-      skillInsights: null, // Null initially!
-      overallScore: null, // Null initially! No assigned score before work analysis!
-      createdAt: new Date().toISOString()
+      overallScore: null,
+      created_at: new Date().toISOString()
     };
 
-    onRegisterAccount(newCreatorUser);
-    setStep(4);
+    onRegisterAccount(newUserRecord);
+
+    if (userRoleType === 'creator') {
+      setStep(4);
+    } else {
+      onClose();
+    }
   };
 
   const handleFinishOnboarding = (action) => {
@@ -236,34 +263,8 @@ export default function AuthModal({
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '20px' }}>
               {authMode === 'signup' 
                 ? 'Create your account and start building your identity around what you can actually do.' 
-                : 'Enter your account details to access your creator identity.'}
+                : 'Enter your credentials to access your creator account.'}
             </p>
-
-            {/* Quick Demo Google Auth */}
-            <button 
-              onClick={() => {
-                const demoEmail = authMode === 'login' ? 'creator1@foundly.ai' : `user_${Date.now()}@foundly.ai`;
-                setEmail(demoEmail);
-                setPassword('password123');
-                if (authMode === 'login') {
-                  onLoginAccount(demoEmail, 'password123');
-                  onClose();
-                } else {
-                  setStep(2);
-                }
-              }}
-              className="btn-secondary"
-              style={{ width: '100%', marginBottom: '16px', justifyContent: 'center', padding: '10px', fontSize: '0.85rem' }}
-            >
-              <Sparkles size={16} color="#a5b4fc" />
-              Continue as Demo Creator
-            </button>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '16px 0', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
-              <div style={{ flex: 1, height: '1px', background: 'var(--border-color)' }} />
-              <span>OR EMAIL</span>
-              <div style={{ flex: 1, height: '1px', background: 'var(--border-color)' }} />
-            </div>
 
             <form onSubmit={handleAuthSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div>
@@ -275,6 +276,7 @@ export default function AuthModal({
                   placeholder="name@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  required
                   style={{
                     width: '100%',
                     background: 'var(--bg-elevated)',
@@ -297,6 +299,7 @@ export default function AuthModal({
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  required
                   style={{
                     width: '100%',
                     background: 'var(--bg-elevated)',
@@ -320,6 +323,7 @@ export default function AuthModal({
                     placeholder="••••••••"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
                     style={{
                       width: '100%',
                       background: 'var(--bg-elevated)',
@@ -334,8 +338,8 @@ export default function AuthModal({
                 </div>
               )}
 
-              <button type="submit" className="btn-primary" style={{ width: '100%', marginTop: '8px', padding: '10px' }}>
-                {authMode === 'signup' ? 'Create Account' : 'Log In'}
+              <button type="submit" disabled={isLoading} className="btn-primary" style={{ width: '100%', marginTop: '8px', padding: '10px' }}>
+                {isLoading ? 'Processing...' : authMode === 'signup' ? 'Create Account' : 'Log In'}
                 <ArrowRight size={16} />
               </button>
             </form>
@@ -412,7 +416,7 @@ export default function AuthModal({
           </div>
         )}
 
-        {/* STEP 3: CREATOR PROFILE CREATION (MANUAL & USER CONTROLLED) */}
+        {/* STEP 3: CREATOR PROFILE CREATION */}
         {step === 3 && (
           <div>
             <span style={{ fontSize: '0.72rem', fontWeight: '700', color: 'var(--primary-indigo)', textTransform: 'uppercase' }}>CREATOR PROFILE CREATION</span>
@@ -425,7 +429,6 @@ export default function AuthModal({
 
             <form onSubmit={handleCreateProfileSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               
-              {/* Full Name & Username */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '4px' }}>
@@ -456,7 +459,6 @@ export default function AuthModal({
                 </div>
               </div>
 
-              {/* Creator Category */}
               <div>
                 <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '4px' }}>
                   What do you create? *
@@ -491,13 +493,12 @@ export default function AuthModal({
                 </div>
               </div>
 
-              {/* Short Bio (Optional - Empty by default!) */}
               <div>
                 <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '4px' }}>
                   Short Bio <span style={{ color: 'var(--text-muted)', textTransform: 'none' }}>(Optional)</span>
                 </label>
                 <textarea 
-                  placeholder="Share a short summary of what you are working on or creating..."
+                  placeholder="Share a short summary of what you are working on..."
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
                   rows={2}
@@ -505,7 +506,6 @@ export default function AuthModal({
                 />
               </div>
 
-              {/* Location (Optional) */}
               <div>
                 <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '4px' }}>
                   Location <span style={{ color: 'var(--text-muted)', textTransform: 'none' }}>(Optional)</span>
@@ -519,7 +519,6 @@ export default function AuthModal({
                 />
               </div>
 
-              {/* Selectable Interests Tags */}
               <div>
                 <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '4px' }}>
                   Interests <span style={{ color: 'var(--text-muted)', textTransform: 'none' }}>(Optional)</span>
@@ -549,8 +548,8 @@ export default function AuthModal({
                 </div>
               </div>
 
-              <button type="submit" className="btn-primary" style={{ width: '100%', marginTop: '12px', padding: '10px' }}>
-                Create My Profile
+              <button type="submit" disabled={isLoading} className="btn-primary" style={{ width: '100%', marginTop: '12px', padding: '10px' }}>
+                {isLoading ? 'Creating Profile...' : 'Create My Profile'}
                 <ArrowRight size={16} />
               </button>
 

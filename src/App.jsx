@@ -11,133 +11,113 @@ import ProfileView from './components/ProfileView';
 import MessagesView from './components/MessagesView';
 import InquiryModal from './components/InquiryModal';
 import AuthModal from './components/AuthModal';
-import { INITIAL_POSTS, SAMPLE_USERS_SEED, COMMUNITIES } from './data/mockData';
+import { supabase, isSupabaseConfigured } from './lib/supabase';
+import { 
+  getCurrentUserSession, signOutUser, fetchAllProfiles, 
+  fetchPosts, createPostInSupabase, fetchCommunities, 
+  toggleCommunityJoinInSupabase, fetchUserJoinedCommunities,
+  fetchUserConnections, toggleConnectionInSupabase, updateUserProfile
+} from './services/api';
+import { COMMUNITIES, INITIAL_POSTS, SAMPLE_USERS_SEED } from './data/mockData';
 
 export default function App() {
-  // 1. Multi-User Database Layer (Stored in localStorage key 'foundly_users_db')
-  const [usersDb, setUsersDb] = useState(() => {
-    try {
-      const saved = localStorage.getItem('foundly_users_db');
-      if (saved) return JSON.parse(saved);
-    } catch (e) {}
-    // Seed initial users map
-    const seedMap = {};
-    SAMPLE_USERS_SEED.forEach(u => { seedMap[u.id] = u; });
-    return seedMap;
-  });
-
-  // 2. Active Session State (Stored in localStorage key 'foundly_session_id')
-  const [sessionUserId, setSessionUserId] = useState(() => {
-    try {
-      return localStorage.getItem('foundly_session_id') || null;
-    } catch (e) {
-      return null;
-    }
-  });
-
-  const isAuthenticated = Boolean(sessionUserId && usersDb[sessionUserId]);
-  const currentUser = isAuthenticated ? usersDb[sessionUserId] : null;
-
+  const [currentUser, setCurrentUser] = useState(null);
   const [userRole, setUserRole] = useState('creator'); // 'creator' | 'provider'
-  const [activeTab, setActiveTab] = useState(isAuthenticated ? 'feed' : 'landing'); // 'landing' | 'feed' | 'discover_people' | 'communities' | 'discovery' | 'saved' | 'evaluator' | 'profile' | 'messages'
+  
+  const isAuthenticated = Boolean(currentUser);
+  
+  const [activeTab, setActiveTab] = useState('landing');
   const [isAnonymousRecruiter, setIsAnonymousRecruiter] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [authModalInitialMode, setAuthModalInitialMode] = useState('signup'); // 'signup' | 'login'
+  const [authModalInitialMode, setAuthModalInitialMode] = useState('signup');
   
-  // Connections State: { [userId]: 'connected' | 'pending' }
-  const [connections, setConnections] = useState(() => {
-    try {
-      const saved = localStorage.getItem('foundly_connections');
-      return saved ? JSON.parse(saved) : { 'aarav-music': 'connected' };
-    } catch (e) {
-      return { 'aarav-music': 'connected' };
-    }
-  });
-
-  // Joined Communities State: { [communityId]: true }
-  const [joinedCommunities, setJoinedCommunities] = useState(() => {
-    try {
-      const saved = localStorage.getItem('foundly_joined_communities');
-      return saved ? JSON.parse(saved) : { 'ai-ml': true, 'designers-collective': true };
-    } catch (e) {
-      return { 'ai-ml': true, 'designers-collective': true };
-    }
-  });
-
-  // Posts State
-  const [posts, setPosts] = useState(() => {
-    try {
-      const saved = localStorage.getItem('foundly_posts');
-      return saved ? JSON.parse(saved) : INITIAL_POSTS;
-    } catch (e) {
-      return INITIAL_POSTS;
-    }
-  });
-
-  const [selectedCreator, setSelectedCreator] = useState(null); // null means viewing currentUser
-
-  // Sync usersDb, session, connections, joinedCommunities, posts to localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem('foundly_users_db', JSON.stringify(usersDb));
-    } catch (e) {}
-  }, [usersDb]);
-
-  useEffect(() => {
-    try {
-      if (sessionUserId) {
-        localStorage.setItem('foundly_session_id', sessionUserId);
-      } else {
-        localStorage.removeItem('foundly_session_id');
-      }
-    } catch (e) {}
-  }, [sessionUserId]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('foundly_connections', JSON.stringify(connections));
-    } catch (e) {}
-  }, [connections]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('foundly_joined_communities', JSON.stringify(joinedCommunities));
-    } catch (e) {}
-  }, [joinedCommunities]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('foundly_posts', JSON.stringify(posts));
-    } catch (e) {}
-  }, [posts]);
-
-  // Shortlisted Candidates state for Opportunity Providers
-  const [shortlisted, setShortlisted] = useState({ 'aarav-music': true });
+  // Real-time Supabase Data State
+  const [creatorsList, setCreatorsList] = useState(SAMPLE_USERS_SEED);
+  const [communitiesList, setCommunitiesList] = useState(COMMUNITIES);
+  const [posts, setPosts] = useState(INITIAL_POSTS);
+  const [connections, setConnections] = useState({});
+  const [joinedCommunities, setJoinedCommunities] = useState({});
+  
+  const [selectedCreator, setSelectedCreator] = useState(null);
+  const [shortlisted, setShortlisted] = useState({});
 
   // Inquiry Modal State
   const [isInquiryModalOpen, setIsInquiryModalOpen] = useState(false);
   const [inquiryTargetCreator, setInquiryTargetCreator] = useState(null);
-  
   const [unreadCount, setUnreadCount] = useState(1);
 
+  // 1. Initial Load & Supabase Auth Listener
+  useEffect(() => {
+    async function initSession() {
+      // Fetch initial datasets
+      const [profiles, dbPosts, dbCommunities] = await Promise.all([
+        fetchAllProfiles(),
+        fetchPosts(),
+        fetchCommunities()
+      ]);
+
+      setCreatorsList(profiles);
+      setPosts(dbPosts);
+      setCommunitiesList(dbCommunities);
+
+      if (isSupabaseConfigured && supabase) {
+        const sessionUser = await getCurrentUserSession();
+        if (sessionUser) {
+          setCurrentUser(sessionUser);
+          setActiveTab('feed');
+          
+          const [userConn, userComm] = await Promise.all([
+            fetchUserConnections(sessionUser.id),
+            fetchUserJoinedCommunities(sessionUser.id)
+          ]);
+          setConnections(userConn);
+          setJoinedCommunities(userComm);
+        }
+
+        // Listen for Auth changes
+        const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+          if (session?.user) {
+            const userProfile = await getCurrentUserSession();
+            setCurrentUser(userProfile);
+          } else {
+            setCurrentUser(null);
+          }
+        });
+
+        return () => authListener?.subscription?.unsubscribe();
+      }
+    }
+
+    initSession();
+  }, []);
+
+  // Refresh feed posts helper
+  const reloadPosts = async () => {
+    const updatedPosts = await fetchPosts();
+    setPosts(updatedPosts);
+  };
+
+  // Refresh creators helper
+  const reloadCreators = async () => {
+    const updatedProfiles = await fetchAllProfiles();
+    setCreatorsList(updatedProfiles);
+  };
+
   // AUTHENTICATION HANDLERS
-  const handleRegisterAccount = (newUser) => {
-    setUsersDb(prev => ({
-      ...prev,
-      [newUser.id]: newUser
-    }));
-    setSessionUserId(newUser.id);
+  const handleRegisterAccount = async (newUser) => {
+    setCurrentUser(newUser);
     setUserRole(newUser.role || 'creator');
     setActiveTab('feed');
+    await reloadCreators();
   };
 
   const handleLoginAccount = (email, password) => {
-    const matchedUser = Object.values(usersDb).find(
+    const matchedUser = creatorsList.find(
       u => u.email && u.email.toLowerCase() === email.toLowerCase()
     );
 
     if (matchedUser) {
-      setSessionUserId(matchedUser.id);
+      setCurrentUser(matchedUser);
       setUserRole(matchedUser.role || 'creator');
       setActiveTab('feed');
       return true;
@@ -145,8 +125,9 @@ export default function App() {
     return false;
   };
 
-  const handleLogoutAccount = () => {
-    setSessionUserId(null);
+  const handleLogoutAccount = async () => {
+    await signOutUser();
+    setCurrentUser(null);
     setSelectedCreator(null);
     setActiveTab('landing');
   };
@@ -162,26 +143,40 @@ export default function App() {
   };
 
   // CONNECTION & COMMUNITY HANDLERS
-  const handleToggleConnect = (userId) => {
+  const handleToggleConnect = async (targetUserId) => {
+    if (!currentUser) {
+      handleOpenAuth('signup');
+      return;
+    }
+
+    const currentStatus = connections[targetUserId];
     setConnections(prev => {
-      const currentStatus = prev[userId];
       let nextStatus = 'pending';
       if (currentStatus === 'pending') nextStatus = 'connected';
       else if (currentStatus === 'connected') nextStatus = undefined;
       
       const updated = { ...prev };
-      if (!nextStatus) delete updated[userId];
-      else updated[userId] = nextStatus;
-
+      if (!nextStatus) delete updated[targetUserId];
+      else updated[targetUserId] = nextStatus;
       return updated;
     });
+
+    await toggleConnectionInSupabase(currentUser.id, targetUserId, currentStatus);
   };
 
-  const handleToggleJoinCommunity = (communityId) => {
+  const handleToggleJoinCommunity = async (communityId) => {
+    if (!currentUser) {
+      handleOpenAuth('signup');
+      return;
+    }
+
+    const isJoined = joinedCommunities[communityId];
     setJoinedCommunities(prev => ({
       ...prev,
-      [communityId]: !prev[communityId]
+      [communityId]: !isJoined
     }));
+
+    await toggleCommunityJoinInSupabase(communityId, currentUser.id, isJoined);
   };
 
   const handleToggleShortlist = (creatorId) => {
@@ -189,7 +184,7 @@ export default function App() {
   };
 
   const handleOpenInquiryModal = (creator) => {
-    setInquiryTargetCreator(creator || Object.values(usersDb)[0]);
+    setInquiryTargetCreator(creator || creatorsList[0]);
     setIsInquiryModalOpen(true);
   };
 
@@ -216,18 +211,17 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleUpdateCurrentUser = (updatedProfile) => {
+  const handleUpdateCurrentUser = async (updatedProfile) => {
     if (!currentUser) return;
-    setUsersDb(prev => ({
-      ...prev,
-      [currentUser.id]: updatedProfile
-    }));
+    setCurrentUser(updatedProfile);
+    await updateUserProfile(currentUser.id, updatedProfile);
+    await reloadCreators();
   };
 
-  const handlePublishPost = ({ caption, category }) => {
+  const handlePublishPost = async ({ caption, category }) => {
     if (!currentUser) return;
 
-    const newPost = {
+    const newPostObj = {
       id: 'post_' + Date.now(),
       creatorId: currentUser.id,
       creatorName: currentUser.name,
@@ -245,24 +239,32 @@ export default function App() {
         parameters: [
           { label: 'Technical Depth', score: currentUser.overallScore }
         ],
-        insight: currentUser.aiFeedback || 'Demonstrated execution in core category parameters.'
+        insight: currentUser.bio || 'Demonstrated execution in core category parameters.'
       } : null,
       comments: []
     };
 
-    setPosts([newPost, ...posts]);
+    setPosts([newPostObj, ...posts]);
+
+    await createPostInSupabase({
+      authorId: currentUser.id,
+      content: caption,
+      category: category || currentUser.category || 'technology',
+      aiAnalysis: newPostObj.aiAnalysis
+    });
+
+    await reloadPosts();
   };
 
-  const handlePublishToFeedFromEvaluator = (evalResult) => {
+  const handlePublishToFeedFromEvaluator = async (evalResult) => {
     if (!currentUser) return;
 
     const scoreVal = evalResult.overallScore || 8.7;
     
-    // Update currentUser in usersDb
+    // Update currentUser profile score
     const updatedUser = {
       ...currentUser,
       overallScore: scoreVal,
-      demonstratedSkillScore: scoreVal,
       work: [
         {
           id: 'w_' + Date.now(),
@@ -275,12 +277,9 @@ export default function App() {
       ]
     };
 
-    setUsersDb(prev => ({
-      ...prev,
-      [currentUser.id]: updatedUser
-    }));
+    await handleUpdateCurrentUser(updatedUser);
 
-    handlePublishPost({
+    await handlePublishPost({
       caption: `Published new ${evalResult.category.name} submission analyzed by Foundly! Demonstrated Skill Score of ${scoreVal}/10. 🚀`,
       category: evalResult.category.id
     });
@@ -296,9 +295,6 @@ export default function App() {
     setActiveTab(tab);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
-
-  // Creators list array for Discover & Feed
-  const creatorsList = Object.values(usersDb);
 
   return (
     <div className="app-container">
@@ -335,7 +331,7 @@ export default function App() {
             posts={posts}
             currentUser={currentUser}
             creators={creatorsList}
-            communities={COMMUNITIES}
+            communities={communitiesList}
             joinedCommunities={joinedCommunities}
             onToggleJoinCommunity={handleToggleJoinCommunity}
             connections={connections}
@@ -360,7 +356,7 @@ export default function App() {
 
         {isAuthenticated && activeTab === 'communities' && (
           <CommunitiesView 
-            communities={COMMUNITIES}
+            communities={communitiesList}
             joinedCommunities={joinedCommunities}
             onToggleJoinCommunity={handleToggleJoinCommunity}
             currentUser={currentUser}
@@ -411,7 +407,7 @@ export default function App() {
             connections={connections}
             onToggleConnect={handleToggleConnect}
             joinedCommunities={joinedCommunities}
-            allCommunities={COMMUNITIES}
+            allCommunities={communitiesList}
           />
         )}
 
@@ -458,7 +454,7 @@ export default function App() {
         </div>
         <p style={{ fontWeight: '600', color: '#a5b4fc' }}>beyond followers. beyond connections.</p>
         <p style={{ fontSize: '0.75rem', marginTop: '6px', color: 'var(--text-muted)' }}>
-          Foundly Skill Engine & Creator Ecosystem • Prototype Validation Build
+          Foundly Skill Engine & Supabase Multi-User Backend • Prototype Validation Build
         </p>
       </footer>
 
