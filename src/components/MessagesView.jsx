@@ -1,8 +1,5 @@
 import React, { useState } from 'react';
-import { 
-  Search, Send, ShieldCheck, Eye, EyeOff, UserCheck, 
-  Award, Sparkles, MessageSquare, Check, CheckCheck 
-} from 'lucide-react';
+import { Search, Send, ShieldCheck, Eye, UserCheck, MessageSquare, CheckCircle2 } from 'lucide-react';
 import { CREATORS } from '../data/mockData';
 
 export default function MessagesView({ 
@@ -11,7 +8,6 @@ export default function MessagesView({
   activeConversations = [], 
   onSendMessage 
 }) {
-  // Pre-seed conversation threads if none passed
   const initialThreads = [
     {
       id: 'conv-rahul',
@@ -82,8 +78,10 @@ export default function MessagesView({
   const [searchQuery, setSearchQuery] = useState('');
   const [inputText, setInputText] = useState('');
   const [identityRevealed, setIdentityRevealed] = useState(!isAnonymousRecruiter);
+  const [showSnapshotEvidence, setShowSnapshotEvidence] = useState(false);
 
   const activeThread = threads.find(t => t.id === selectedThreadId) || threads[0];
+  const activeCreator = activeThread.creator;
 
   const handleSend = () => {
     if (!inputText.trim()) return;
@@ -124,55 +122,52 @@ export default function MessagesView({
   );
 
   return (
-    <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
+    <div style={{ maxWidth: '1080px', margin: '0 auto' }}>
       
-      {/* Messages 2-Pane Box */}
+      {/* Messages Container */}
       <div className="glass-panel" style={{
         display: 'grid',
-        gridTemplateColumns: 'minmax(280px, 340px) 1fr',
-        height: '680px',
+        gridTemplateColumns: 'minmax(260px, 320px) 1fr',
+        height: '660px',
         overflow: 'hidden',
         padding: 0
       }}>
         
-        {/* LEFT SIDEBAR: Conversation Threads List */}
+        {/* LEFT SIDEBAR: Threads List */}
         <aside style={{
-          borderRight: '1px solid var(--border-glass)',
+          borderRight: '1px solid var(--border-color)',
           display: 'flex',
           flexDirection: 'column',
-          background: 'rgba(11, 15, 25, 0.6)'
+          background: 'var(--bg-surface)'
         }}>
           
-          {/* Header */}
-          <div style={{ padding: '18px 20px', borderBottom: '1px solid var(--border-glass)' }}>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: '800', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <MessageSquare size={20} color="#818cf8" />
+          <div style={{ padding: '16px', borderBottom: '1px solid var(--border-color)' }}>
+            <h3 style={{ fontSize: '1rem', fontWeight: '800', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <MessageSquare size={18} color="var(--primary-indigo)" />
               Opportunity Messages
             </h3>
 
-            {/* Search Input */}
             <div style={{ position: 'relative' }}>
-              <Search size={15} color="var(--text-muted)" style={{ position: 'absolute', left: '10px', top: '9px' }} />
+              <Search size={14} color="var(--text-muted)" style={{ position: 'absolute', left: '10px', top: '9px' }} />
               <input
                 type="text"
-                placeholder="Search conversations..."
+                placeholder="Search messages..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 style={{
                   width: '100%',
-                  background: 'rgba(0, 0, 0, 0.3)',
-                  border: '1px solid var(--border-glass)',
-                  borderRadius: '8px',
-                  padding: '7px 12px 7px 32px',
+                  background: 'var(--bg-elevated)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '6px',
+                  padding: '7px 10px 7px 30px',
                   color: '#ffffff',
-                  fontSize: '0.8rem',
+                  fontSize: '0.78rem',
                   outline: 'none'
                 }}
               />
             </div>
           </div>
 
-          {/* Conversation List Stream */}
           <div style={{ flex: 1, overflowY: 'auto' }}>
             {filteredThreads.map(thread => {
               const isSelected = thread.id === selectedThreadId;
@@ -183,36 +178,30 @@ export default function MessagesView({
                   key={thread.id}
                   onClick={() => setSelectedThreadId(thread.id)}
                   style={{
-                    padding: '14px 18px',
-                    borderBottom: '1px solid rgba(255, 255, 255, 0.04)',
-                    background: isSelected ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
-                    borderLeft: isSelected ? '3px solid #6366f1' : '3px solid transparent',
+                    padding: '12px 16px',
+                    borderBottom: '1px solid var(--border-subtle)',
+                    background: isSelected ? 'rgba(99, 102, 241, 0.12)' : 'transparent',
+                    borderLeft: isSelected ? '3px solid var(--primary-indigo)' : '3px solid transparent',
                     cursor: 'pointer',
                     transition: 'var(--transition-smooth)'
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <img
                       src={creator.avatar}
                       alt={creator.name}
-                      style={{ width: '42px', height: '42px', borderRadius: '50%', objectFit: 'cover' }}
+                      style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }}
                     />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <h4 style={{ fontSize: '0.9rem', fontWeight: '700', color: '#ffffff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <h4 style={{ fontSize: '0.88rem', fontWeight: '700', color: '#ffffff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {creator.name}
                         </h4>
-                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{thread.lastTime}</span>
+                        <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{thread.lastTime}</span>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
-                        <span style={{ fontSize: '0.72rem', color: '#38bdf8', fontWeight: '600' }}>
-                          AI {creator.overallScore}/10
-                        </span>
-                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>• {creator.categoryLabel}</span>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                        Score {creator.overallScore} • {creator.categoryLabel}
                       </div>
-                      <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: '4px' }}>
-                        {thread.lastMessage}
-                      </p>
                     </div>
                   </div>
                 </div>
@@ -222,71 +211,86 @@ export default function MessagesView({
 
         </aside>
 
-        {/* RIGHT PANEL: Active Conversation & Chat Stream */}
-        <main style={{ display: 'flex', flexDirection: 'column', background: 'rgba(7, 9, 14, 0.7)' }}>
+        {/* RIGHT PANEL: Chat Stream & Candidate Snapshot Banner */}
+        <main style={{ display: 'flex', flexDirection: 'column', background: 'var(--bg-dark)' }}>
           
-          {/* Chat Header */}
+          {/* CANDIDATE SNAPSHOT BANNER ABOVE CONVERSATION */}
           <div style={{
-            padding: '16px 24px',
-            borderBottom: '1px solid var(--border-glass)',
-            background: 'rgba(15, 23, 42, 0.9)',
+            padding: '12px 20px',
+            background: 'var(--bg-surface)',
+            borderBottom: '1px solid var(--border-color)',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between'
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <img
-                src={activeThread.creator.avatar}
-                alt={activeThread.creator.name}
-                style={{ width: '46px', height: '46px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #6366f1' }}
+                src={activeCreator.avatar}
+                alt={activeCreator.name}
+                style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--border-color)' }}
               />
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#ffffff' }}>
-                    {activeThread.creator.name}
-                  </h3>
-                  <span className="score-badge high" style={{ padding: '2px 8px', fontSize: '0.75rem' }}>
-                    AI Score {activeThread.creator.overallScore}/10
-                  </span>
+                  <span style={{ fontSize: '0.95rem', fontWeight: '800', color: '#ffffff' }}>{activeCreator.name}</span>
+                  <span className="score-badge" style={{ fontSize: '0.7rem', padding: '1px 6px' }}>{activeCreator.categoryLabel}</span>
                 </div>
-                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                  {activeThread.creator.categoryLabel} • {activeThread.creator.location}
-                </p>
+
+                {/* Candidate Metric Line */}
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                  <span>Demonstrated Skill Score: <strong style={{ color: 'var(--color-success)' }}>{activeCreator.overallScore} / 10</strong></span>
+                  <span>|</span>
+                  <span>Pitch Accuracy: <strong>9.1</strong></span>
+                  <span>|</span>
+                  <span>Voice Quality: <strong>8.7</strong></span>
+                  <span>|</span>
+                  <span>Expression: <strong>8.4</strong></span>
+                </div>
               </div>
             </div>
 
-            {/* Recruiter Identity Reveal Toggle (If Provider) */}
-            {userRole === 'provider' && isAnonymousRecruiter && (
-              <button
-                onClick={() => setIdentityRevealed(!identityRevealed)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '6px 12px',
-                  borderRadius: '8px',
-                  border: '1px solid rgba(6, 182, 212, 0.4)',
-                  background: identityRevealed ? 'rgba(16, 185, 129, 0.2)' : 'rgba(6, 182, 212, 0.2)',
-                  color: '#ffffff',
-                  fontSize: '0.75rem',
-                  fontWeight: '700',
-                  cursor: 'pointer'
-                }}
-              >
-                {identityRevealed ? <UserCheck size={14} color="#34d399" /> : <Eye size={14} color="#38bdf8" />}
-                {identityRevealed ? 'Identity Revealed to Creator' : 'Reveal Identity to Creator'}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <button className="btn-evidence-trigger" onClick={() => setShowSnapshotEvidence(!showSnapshotEvidence)}>
+                <Eye size={13} />
+                <span>View Evidence →</span>
               </button>
-            )}
+
+              {userRole === 'provider' && isAnonymousRecruiter && (
+                <button
+                  onClick={() => setIdentityRevealed(!identityRevealed)}
+                  className="btn-secondary"
+                  style={{ fontSize: '0.75rem', padding: '4px 10px' }}
+                >
+                  {identityRevealed ? <UserCheck size={13} color="var(--color-success)" /> : <ShieldCheck size={13} />}
+                  {identityRevealed ? 'Revealed' : 'Reveal Identity'}
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Messages Scroll Area */}
+          {/* Evidence Drawer for Candidate Snapshot */}
+          {showSnapshotEvidence && (
+            <div className="evidence-card" style={{ margin: '12px var(--space-20) 0 var(--space-20)' }}>
+              <div className="evidence-title">
+                <CheckCircle2 size={14} />
+                <span>EVIDENCE SNAPSHOT FOR {activeCreator.name.toUpperCase()}</span>
+              </div>
+              <div className="evidence-list">
+                <div className="evidence-item">• Verified pitch accuracy stability ≥9.1 across acoustic dataset</div>
+                <div className="evidence-item">• Zero red-flag vocal strain or artificial tuning detected</div>
+              </div>
+            </div>
+          )}
+
+          {/* Messages Scroll Stream */}
           <div style={{
             flex: 1,
-            padding: '24px',
+            padding: '20px',
             overflowY: 'auto',
             display: 'flex',
             flexDirection: 'column',
-            gap: '16px'
+            gap: '14px'
           }}>
             {activeThread.messages.map(msg => {
               const isUserRoleMe = (userRole === 'provider' && msg.sender === 'provider') || (userRole === 'creator' && msg.sender === 'creator');
@@ -299,25 +303,18 @@ export default function MessagesView({
                     maxWidth: '75%'
                   }}
                 >
-                  <div style={{
-                    fontSize: '0.72rem',
-                    color: 'var(--text-muted)',
-                    marginBottom: '4px',
-                    textAlign: isUserRoleMe ? 'right' : 'left'
-                  }}>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '3px', textAlign: isUserRoleMe ? 'right' : 'left' }}>
                     {msg.senderName} • {msg.timestamp}
                   </div>
                   <div style={{
-                    padding: '12px 18px',
-                    borderRadius: '16px',
-                    borderTopRightRadius: isUserRoleMe ? '2px' : '16px',
-                    borderTopLeftRadius: isUserRoleMe ? '16px' : '2px',
-                    background: isUserRoleMe
-                      ? 'linear-gradient(135deg, var(--primary-600), var(--accent-purple))'
-                      : 'rgba(255, 255, 255, 0.08)',
-                    border: isUserRoleMe ? 'none' : '1px solid var(--border-glass)',
+                    padding: '10px 16px',
+                    borderRadius: '12px',
+                    borderTopRightRadius: isUserRoleMe ? '2px' : '12px',
+                    borderTopLeftRadius: isUserRoleMe ? '12px' : '2px',
+                    background: isUserRoleMe ? 'var(--primary-gradient)' : 'var(--bg-elevated)',
+                    border: isUserRoleMe ? 'none' : '1px solid var(--border-color)',
                     color: '#ffffff',
-                    fontSize: '0.9rem',
+                    fontSize: '0.88rem',
                     lineHeight: '1.5'
                   }}>
                     {msg.text}
@@ -327,37 +324,33 @@ export default function MessagesView({
             })}
           </div>
 
-          {/* Bottom Message Composer */}
+          {/* Message Input Bar */}
           <div style={{
-            padding: '18px 24px',
-            background: 'rgba(15, 23, 42, 0.95)',
-            borderTop: '1px solid var(--border-glass)',
+            padding: '14px 20px',
+            background: 'var(--bg-surface)',
+            borderTop: '1px solid var(--border-color)',
             display: 'flex',
-            gap: '12px'
+            gap: '10px'
           }}>
             <input
               type="text"
-              placeholder={`Type a message to ${activeThread.creator.name}...`}
+              placeholder={`Write message to ${activeCreator.name}...`}
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
               style={{
                 flex: 1,
-                background: 'rgba(0, 0, 0, 0.4)',
-                border: '1px solid var(--border-glass)',
-                borderRadius: '10px',
-                padding: '10px 16px',
+                background: 'var(--bg-elevated)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '8px',
+                padding: '9px 14px',
                 color: '#ffffff',
-                fontSize: '0.88rem',
+                fontSize: '0.85rem',
                 outline: 'none'
               }}
             />
-            <button
-              onClick={handleSend}
-              className="btn-primary"
-              style={{ padding: '10px 22px' }}
-            >
-              <Send size={16} />
+            <button onClick={handleSend} className="btn-primary" style={{ padding: '9px 18px' }}>
+              <Send size={15} />
               Send
             </button>
           </div>
@@ -365,7 +358,6 @@ export default function MessagesView({
         </main>
 
       </div>
-
     </div>
   );
 }

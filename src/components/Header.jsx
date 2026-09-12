@@ -1,300 +1,512 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
-  Sparkles, Compass, Cpu, User, EyeOff, ShieldCheck, 
-  MessageSquare, Zap, Bookmark, Briefcase, RefreshCw 
+  Sparkles, Compass, User, MessageSquare, Zap, Bookmark, 
+  ChevronDown, Check, ArrowLeftRight, UserPlus, Users, LogOut, UserCheck
 } from 'lucide-react';
 
 export default function Header({ 
+  isAuthenticated,
   userRole, 
   setUserRole, 
   activeTab, 
   setActiveTab, 
-  isAnonymousRecruiter, 
-  setIsAnonymousRecruiter,
-  unreadCount = 2
+  onOpenAuth,
+  currentUser,
+  unreadCount = 1,
+  onOpenOwnProfile,
+  onLogoutAccount,
+  onSwitchAccount
 }) {
-  const toggleRole = () => {
-    const nextRole = userRole === 'creator' ? 'provider' : 'creator';
-    setUserRole(nextRole);
-    // If switching to provider and currently on profile, switch tab to discovery
-    if (nextRole === 'provider' && (activeTab === 'profile' || activeTab === 'evaluator')) {
+  const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const roleDropdownRef = useRef(null);
+  const userMenuRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (roleDropdownRef.current && !roleDropdownRef.current.contains(event.target)) {
+        setIsRoleDropdownOpen(false);
+      }
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
+        setIsUserMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleRoleSelect = (role) => {
+    setUserRole(role);
+    setIsRoleDropdownOpen(false);
+    if (role === 'provider' && (activeTab === 'profile' || activeTab === 'evaluator' || activeTab === 'discover_people' || activeTab === 'communities')) {
       setActiveTab('discovery');
-    } else if (nextRole === 'creator' && (activeTab === 'discovery' || activeTab === 'saved')) {
+    } else if (role === 'creator' && (activeTab === 'discovery' || activeTab === 'saved')) {
       setActiveTab('feed');
     }
   };
 
   return (
     <header className="header-glass">
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '16px'
+      }}>
         
-        {/* Brand & Tagline */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }} onClick={() => setActiveTab('feed')}>
+        {/* LOGO ON LEFT */}
+        <div 
+          style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }} 
+          onClick={() => setActiveTab(isAuthenticated ? 'feed' : 'landing')}
+          title="Foundly — Home"
+        >
           <div style={{
-            width: '42px',
-            height: '42px',
-            borderRadius: '12px',
-            background: 'linear-gradient(135deg, #6366f1, #a855f7)',
+            width: '32px',
+            height: '32px',
+            borderRadius: '8px',
+            background: 'var(--primary-indigo)',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 0 20px rgba(99, 102, 241, 0.4)'
+            justifyContent: 'center'
           }}>
-            <Sparkles size={24} color="#ffffff" />
+            <Sparkles size={16} color="#ffffff" />
           </div>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '1.4rem', fontWeight: '800', letterSpacing: '-0.03em', fontFamily: 'var(--font-heading)', color: '#ffffff' }}>
-                FOUNDLY
-              </span>
-              <span style={{
-                fontSize: '0.65rem',
-                fontWeight: '700',
-                padding: '2px 8px',
-                borderRadius: '99px',
-                background: userRole === 'provider' ? 'rgba(6, 182, 212, 0.2)' : 'rgba(99, 102, 241, 0.2)',
-                color: userRole === 'provider' ? '#38bdf8' : '#818cf8',
-                border: `1px solid ${userRole === 'provider' ? 'rgba(6, 182, 212, 0.4)' : 'rgba(99, 102, 241, 0.4)'}`
-              }}>
-                {userRole === 'provider' ? 'OPPORTUNITY PROVIDER' : 'CREATOR PLATFORM'}
-              </span>
+            <div style={{ fontSize: '1.2rem', fontWeight: '800', letterSpacing: '-0.03em', fontFamily: 'var(--font-heading)', color: '#ffffff', lineHeight: 1 }}>
+              FOUNDLY
             </div>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '500' }}>
-              Beyond Followers. Beyond Connections.
+            <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontWeight: '500', marginTop: '2px' }}>
+              beyond followers. beyond connections.
             </p>
           </div>
         </div>
 
-        {/* Dynamic Navigation Tabs based on Role */}
-        <nav style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(255, 255, 255, 0.04)', padding: '4px', borderRadius: '12px', border: '1px solid var(--border-glass)' }}>
-          
-          <button 
-            onClick={() => setActiveTab('feed')}
-            style={{
+        {/* PUBLIC WEBSITE NAVIGATION (LOGGED OUT) */}
+        {!isAuthenticated && (
+          <>
+            <nav style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
-              padding: '8px 14px',
-              borderRadius: '8px',
-              border: 'none',
+              gap: '16px',
               fontSize: '0.85rem',
               fontWeight: '600',
-              cursor: 'pointer',
-              transition: 'var(--transition-smooth)',
-              background: activeTab === 'feed' ? 'rgba(99, 102, 241, 0.25)' : 'transparent',
-              color: activeTab === 'feed' ? '#ffffff' : 'var(--text-muted)'
-            }}
-          >
-            <Compass size={16} color={activeTab === 'feed' ? '#818cf8' : 'currentColor'} />
-            Community Feed
-          </button>
-
-          {/* CREATOR NAV ITEMS */}
-          {userRole === 'creator' && (
-            <>
-              <button 
-                onClick={() => setActiveTab('evaluator')}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '8px 14px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  fontSize: '0.85rem',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'var(--transition-smooth)',
-                  background: activeTab === 'evaluator' ? 'rgba(168, 85, 247, 0.25)' : 'transparent',
-                  color: activeTab === 'evaluator' ? '#ffffff' : 'var(--text-muted)'
-                }}
-              >
-                <Cpu size={16} color={activeTab === 'evaluator' ? '#c084fc' : 'currentColor'} />
-                AI Evaluator
+              color: 'var(--text-secondary)'
+            }}>
+              <button onClick={() => setActiveTab('landing')} style={{ background: 'none', border: 'none', color: activeTab === 'landing' ? '#ffffff' : 'var(--text-secondary)', cursor: 'pointer', fontWeight: '600' }}>
+                Product
               </button>
-
-              <button 
-                onClick={() => setActiveTab('profile')}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '8px 14px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  fontSize: '0.85rem',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'var(--transition-smooth)',
-                  background: activeTab === 'profile' ? 'rgba(16, 185, 129, 0.25)' : 'transparent',
-                  color: activeTab === 'profile' ? '#ffffff' : 'var(--text-muted)'
-                }}
-              >
-                <User size={16} color={activeTab === 'profile' ? '#34d399' : 'currentColor'} />
-                Skill Profile
+              <button onClick={() => setActiveTab('landing')} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontWeight: '600' }}>
+                How It Works
               </button>
-            </>
-          )}
-
-          {/* PROVIDER NAV ITEMS */}
-          {userRole === 'provider' && (
-            <>
-              <button 
-                onClick={() => setActiveTab('discovery')}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '8px 14px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  fontSize: '0.85rem',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'var(--transition-smooth)',
-                  background: activeTab === 'discovery' ? 'rgba(6, 182, 212, 0.25)' : 'transparent',
-                  color: activeTab === 'discovery' ? '#ffffff' : 'var(--text-muted)'
-                }}
-              >
-                <Zap size={16} color={activeTab === 'discovery' ? '#38bdf8' : 'currentColor'} />
-                Talent Discovery
+              <button onClick={() => setActiveTab('landing')} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontWeight: '600' }}>
+                For Talent
               </button>
-
-              <button 
-                onClick={() => setActiveTab('saved')}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '8px 14px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  fontSize: '0.85rem',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'var(--transition-smooth)',
-                  background: activeTab === 'saved' ? 'rgba(245, 158, 11, 0.25)' : 'transparent',
-                  color: activeTab === 'saved' ? '#ffffff' : 'var(--text-muted)'
-                }}
-              >
-                <Bookmark size={16} color={activeTab === 'saved' ? '#fbbf24' : 'currentColor'} />
-                Saved Talent
+              <button onClick={() => setActiveTab('landing')} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontWeight: '600' }}>
+                For Providers
               </button>
-            </>
-          )}
+              <button onClick={() => onOpenAuth('login')} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontWeight: '600' }}>
+                Communities
+              </button>
+            </nav>
 
-          {/* COMMON MESSAGES TAB */}
-          <button 
-            onClick={() => setActiveTab('messages')}
-            style={{
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <button onClick={() => onOpenAuth('login')} className="btn-secondary" style={{ padding: '6px 14px', fontSize: '0.8rem' }}>
+                Log In
+              </button>
+              <button onClick={() => onOpenAuth('signup')} className="btn-primary" style={{ padding: '6px 14px', fontSize: '0.8rem' }}>
+                <UserPlus size={14} />
+                Join Foundly
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* AUTHENTICATED APP NAVIGATION (LOGGED IN) */}
+        {isAuthenticated && (
+          <>
+            <nav style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
-              padding: '8px 14px',
+              gap: '2px',
+              background: 'var(--bg-dark)',
+              padding: '3px',
               borderRadius: '8px',
-              border: 'none',
-              fontSize: '0.85rem',
-              fontWeight: '600',
-              cursor: 'pointer',
-              transition: 'var(--transition-smooth)',
-              background: activeTab === 'messages' ? 'rgba(244, 63, 94, 0.25)' : 'transparent',
-              color: activeTab === 'messages' ? '#ffffff' : 'var(--text-muted)',
-              position: 'relative'
-            }}
-          >
-            <MessageSquare size={16} color={activeTab === 'messages' ? '#fb7185' : 'currentColor'} />
-            Messages
-            {unreadCount > 0 && (
-              <span style={{
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
-                background: '#f43f5e',
-                boxShadow: '0 0 6px #f43f5e'
-              }} />
-            )}
-          </button>
+              border: '1px solid var(--border-color)',
+              overflowX: 'auto'
+            }}>
+              {/* CREATOR SPECIFIC TABS */}
+              {userRole === 'creator' && (
+                <>
+                  {/* HOME / FEED */}
+                  <button 
+                    onClick={() => setActiveTab('feed')}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '5px 12px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      fontSize: '0.8rem',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'var(--transition-smooth)',
+                      background: activeTab === 'feed' ? 'rgba(99, 102, 241, 0.2)' : 'transparent',
+                      color: activeTab === 'feed' ? '#ffffff' : 'var(--text-secondary)',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    <Compass size={13} color={activeTab === 'feed' ? '#818cf8' : 'currentColor'} />
+                    Home
+                  </button>
 
-        </nav>
+                  {/* DISCOVER PEOPLE */}
+                  <button 
+                    onClick={() => setActiveTab('discover_people')}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '5px 12px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      fontSize: '0.8rem',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'var(--transition-smooth)',
+                      background: activeTab === 'discover_people' ? 'rgba(99, 102, 241, 0.2)' : 'transparent',
+                      color: activeTab === 'discover_people' ? '#ffffff' : 'var(--text-secondary)',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    <Users size={13} color={activeTab === 'discover_people' ? '#818cf8' : 'currentColor'} />
+                    Discover
+                  </button>
 
-        {/* Right Section: Role Switcher & Anonymous Mode Pill */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          
-          {/* Role Switcher Pill */}
-          <button
-            onClick={toggleRole}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '7px 14px',
-              borderRadius: '99px',
-              background: userRole === 'provider' 
-                ? 'linear-gradient(135deg, rgba(6, 182, 212, 0.25), rgba(99, 102, 241, 0.25))' 
-                : 'linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(168, 85, 247, 0.25))',
-              border: `1px solid ${userRole === 'provider' ? 'rgba(6, 182, 212, 0.5)' : 'rgba(168, 85, 247, 0.5)'}`,
-              color: '#ffffff',
-              fontSize: '0.8rem',
-              fontWeight: '700',
-              cursor: 'pointer',
-              transition: 'var(--transition-smooth)'
-            }}
-            title="Click to switch between Creator Experience and Opportunity Provider Experience"
-          >
-            <RefreshCw size={14} color={userRole === 'provider' ? '#38bdf8' : '#c084fc'} />
-            <span>Switch Experience: <strong>{userRole === 'provider' ? 'Opportunity Provider' : 'Creator'}</strong></span>
-          </button>
+                  {/* COMMUNITIES */}
+                  <button 
+                    onClick={() => setActiveTab('communities')}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '5px 12px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      fontSize: '0.8rem',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'var(--transition-smooth)',
+                      background: activeTab === 'communities' ? 'rgba(99, 102, 241, 0.2)' : 'transparent',
+                      color: activeTab === 'communities' ? '#ffffff' : 'var(--text-secondary)',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    <Compass size={13} color={activeTab === 'communities' ? '#818cf8' : 'currentColor'} />
+                    Communities
+                  </button>
 
-          {/* Anonymous Provider Stealth Toggle (Only in Provider mode) */}
-          {userRole === 'provider' && (
-            <button
-              onClick={() => setIsAnonymousRecruiter(!isAnonymousRecruiter)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '7px 12px',
-                borderRadius: '99px',
-                background: isAnonymousRecruiter ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-                border: `1px solid ${isAnonymousRecruiter ? 'rgba(16, 185, 129, 0.5)' : 'rgba(255, 255, 255, 0.1)'}`,
-                color: isAnonymousRecruiter ? '#a7f3d0' : 'var(--text-muted)',
-                fontSize: '0.78rem',
-                fontWeight: '700',
-                cursor: 'pointer'
-              }}
-              title="Toggle Anonymous Opportunity Provider Browsing Mode"
-            >
-              <EyeOff size={15} color={isAnonymousRecruiter ? '#34d399' : 'currentColor'} />
-              <span>{isAnonymousRecruiter ? 'Anonymous Mode Active' : 'Public Profile'}</span>
-            </button>
-          )}
+                  {/* MY PROFILE */}
+                  <button 
+                    onClick={onOpenOwnProfile}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '5px 12px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      fontSize: '0.8rem',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'var(--transition-smooth)',
+                      background: activeTab === 'profile' ? 'rgba(34, 197, 94, 0.2)' : 'transparent',
+                      color: activeTab === 'profile' ? '#ffffff' : 'var(--text-secondary)',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    <User size={13} color={activeTab === 'profile' ? 'var(--color-success)' : 'currentColor'} />
+                    My Profile
+                  </button>
+                </>
+              )}
 
-        </div>
+              {/* OPPORTUNITY PROVIDER SPECIFIC TABS */}
+              {userRole === 'provider' && (
+                <>
+                  <button 
+                    onClick={() => setActiveTab('discovery')}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '5px 12px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      fontSize: '0.8rem',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'var(--transition-smooth)',
+                      background: activeTab === 'discovery' ? 'rgba(99, 102, 241, 0.2)' : 'transparent',
+                      color: activeTab === 'discovery' ? '#ffffff' : 'var(--text-secondary)',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    <Zap size={13} color={activeTab === 'discovery' ? '#a5b4fc' : 'currentColor'} />
+                    Discover Talent
+                  </button>
 
-      </div>
+                  <button 
+                    onClick={() => setActiveTab('saved')}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '5px 12px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      fontSize: '0.8rem',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'var(--transition-smooth)',
+                      background: activeTab === 'saved' ? 'rgba(245, 158, 11, 0.2)' : 'transparent',
+                      color: activeTab === 'saved' ? '#ffffff' : 'var(--text-secondary)',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    <Bookmark size={13} color={activeTab === 'saved' ? 'var(--color-warning)' : 'currentColor'} />
+                    Saved Talent
+                  </button>
+                </>
+              )}
 
-      {/* Role Banner Notification */}
-      <div style={{
-        marginTop: '10px',
-        padding: '6px 14px',
-        borderRadius: '8px',
-        background: userRole === 'provider' ? 'rgba(6, 182, 212, 0.1)' : 'rgba(99, 102, 241, 0.08)',
-        border: `1px solid ${userRole === 'provider' ? 'rgba(6, 182, 212, 0.2)' : 'rgba(99, 102, 241, 0.2)'}`,
-        fontSize: '0.78rem',
-        color: userRole === 'provider' ? '#7dd3fc' : '#a5b4fc',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          {userRole === 'provider' ? <Briefcase size={14} color="#38bdf8" /> : <Sparkles size={14} color="#a5b4fc" />}
-          <span>
-            <strong>{userRole === 'provider' ? 'OPPORTUNITY PROVIDER MODE:' : 'CREATOR MODE:'}</strong> {userRole === 'provider' ? 'Discovering talent based on demonstrated skills, not popularity alone.' : 'Showcasing work, gaining AI skill insights, and connecting with opportunities.'}
-          </span>
-        </div>
-        <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)', fontStyle: 'italic' }}>
-          Prototype Role Switch
-        </span>
+              {/* MESSAGES TAB */}
+              <button 
+                onClick={() => setActiveTab('messages')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '5px 12px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  fontSize: '0.8rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'var(--transition-smooth)',
+                  background: activeTab === 'messages' ? 'rgba(239, 68, 68, 0.2)' : 'transparent',
+                  color: activeTab === 'messages' ? '#ffffff' : 'var(--text-secondary)',
+                  position: 'relative',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                <MessageSquare size={13} color={activeTab === 'messages' ? 'var(--color-error)' : 'currentColor'} />
+                Messages
+                {unreadCount > 0 && (
+                  <span style={{
+                    width: '5px',
+                    height: '5px',
+                    borderRadius: '50%',
+                    background: 'var(--color-error)'
+                  }} />
+                )}
+              </button>
+            </nav>
+
+            {/* RIGHT CONTROLS: ROLE SWITCHER & USER ACCOUNT MENU */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              
+              {/* Role Switcher */}
+              <div style={{ position: 'relative' }} ref={roleDropdownRef}>
+                <button
+                  onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    padding: '5px 10px',
+                    borderRadius: '6px',
+                    background: 'var(--bg-elevated)',
+                    border: '1px solid var(--border-color)',
+                    color: userRole === 'provider' ? '#c084fc' : '#a5b4fc',
+                    fontSize: '0.78rem',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    transition: 'var(--transition-smooth)'
+                  }}
+                  title="Switch Product Experience"
+                >
+                  <ArrowLeftRight size={12} />
+                  <span>{userRole === 'provider' ? 'Recruiter View' : 'Creator View'}</span>
+                  <ChevronDown size={12} style={{ transform: isRoleDropdownOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+                </button>
+
+                {isRoleDropdownOpen && (
+                  <div style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 6px)',
+                    right: 0,
+                    width: '180px',
+                    background: 'var(--bg-surface)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '8px',
+                    padding: '4px',
+                    boxShadow: 'var(--shadow-md)',
+                    zIndex: 200
+                  }}>
+                    <div 
+                      onClick={() => handleRoleSelect('creator')}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '6px 10px',
+                        borderRadius: '6px',
+                        fontSize: '0.8rem',
+                        fontWeight: '600',
+                        color: userRole === 'creator' ? '#ffffff' : 'var(--text-secondary)',
+                        background: userRole === 'creator' ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <span>Creator View</span>
+                      {userRole === 'creator' && <Check size={13} color="#a5b4fc" />}
+                    </div>
+
+                    <div 
+                      onClick={() => handleRoleSelect('provider')}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '6px 10px',
+                        borderRadius: '6px',
+                        fontSize: '0.8rem',
+                        fontWeight: '600',
+                        color: userRole === 'provider' ? '#ffffff' : 'var(--text-secondary)',
+                        background: userRole === 'provider' ? 'rgba(168, 85, 247, 0.15)' : 'transparent',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <span>Opportunity Provider</span>
+                      {userRole === 'provider' && <Check size={13} color="#c084fc" />}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* User Account Menu Dropdown */}
+              {currentUser && (
+                <div style={{ position: 'relative' }} ref={userMenuRef}>
+                  <div 
+                    onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '4px 8px',
+                      borderRadius: '6px',
+                      background: 'var(--bg-elevated)',
+                      border: '1px solid var(--border-color)',
+                      cursor: 'pointer'
+                    }}
+                    title="User Account Options"
+                  >
+                    <img 
+                      src={currentUser.avatar} 
+                      alt={currentUser.name} 
+                      style={{ width: '22px', height: '22px', borderRadius: '50%', objectFit: 'cover' }}
+                    />
+                    <span style={{ fontSize: '0.78rem', fontWeight: '700', color: '#ffffff' }}>
+                      {currentUser.name}
+                    </span>
+                    <ChevronDown size={12} color="var(--text-secondary)" />
+                  </div>
+
+                  {isUserMenuOpen && (
+                    <div style={{
+                      position: 'absolute',
+                      top: 'calc(100% + 6px)',
+                      right: 0,
+                      width: '190px',
+                      background: 'var(--bg-surface)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '8px',
+                      padding: '6px',
+                      boxShadow: 'var(--shadow-md)',
+                      zIndex: 200
+                    }}>
+                      <div style={{ padding: '6px 10px', borderBottom: '1px solid var(--border-color)', marginBottom: '4px' }}>
+                        <div style={{ fontSize: '0.82rem', fontWeight: '700', color: '#ffffff' }}>{currentUser.name}</div>
+                        <div style={{ fontSize: '0.72rem', color: '#a5b4fc' }}>{currentUser.username || currentUser.handle}</div>
+                      </div>
+
+                      <div 
+                        onClick={() => { setIsUserMenuOpen(false); onOpenOwnProfile(); }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          padding: '6px 10px',
+                          borderRadius: '6px',
+                          fontSize: '0.8rem',
+                          fontWeight: '600',
+                          color: 'var(--text-secondary)',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <User size={13} />
+                        <span>My Profile</span>
+                      </div>
+
+                      <div 
+                        onClick={() => { setIsUserMenuOpen(false); onSwitchAccount(); }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          padding: '6px 10px',
+                          borderRadius: '6px',
+                          fontSize: '0.8rem',
+                          fontWeight: '600',
+                          color: 'var(--text-secondary)',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <UserCheck size={13} />
+                        <span>Switch / New User</span>
+                      </div>
+
+                      <div 
+                        onClick={() => { setIsUserMenuOpen(false); onLogoutAccount(); }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          padding: '6px 10px',
+                          borderRadius: '6px',
+                          fontSize: '0.8rem',
+                          fontWeight: '600',
+                          color: 'var(--color-error)',
+                          cursor: 'pointer',
+                          marginTop: '4px',
+                          borderTop: '1px solid var(--border-color)'
+                        }}
+                      >
+                        <LogOut size={13} />
+                        <span>Log Out</span>
+                      </div>
+
+                    </div>
+                  )}
+
+                </div>
+              )}
+
+            </div>
+          </>
+        )}
+
       </div>
     </header>
   );
